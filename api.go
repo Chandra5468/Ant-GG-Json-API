@@ -33,11 +33,13 @@ func makeHTTPHandlerFunc(f apiFunc) http.HandlerFunc {
 
 type APIServer struct {
 	listenAddr string
+	store      Storage
 }
 
-func NewApiServer(listenAddr string) *APIServer {
+func NewApiServer(listenAddr string, store Storage) *APIServer {
 	return &APIServer{
 		listenAddr: listenAddr,
+		store:      store,
 	}
 }
 
@@ -52,7 +54,7 @@ func (s *APIServer) Run() {
 
 	router.HandleFunc("/account", makeHTTPHandlerFunc(s.handleAccount)) // we are transforming handleAccount a normal function to http Handler.
 
-	router.HandleFunc("/account/{id}", makeHTTPHandlerFunc(s.handleGETAccount)) // Q : Why are all the handlers in js(nodejs) and in go used inside a router without () this function braces.
+	router.HandleFunc("/account/{id}", makeHTTPHandlerFunc(s.handleGETAccountByID)) // Q : Why are all the handlers in js(nodejs) and in go used inside a router without () this function braces.
 
 	log.Println("JSON API Server running on port: ", s.listenAddr)
 	http.ListenAndServe(s.listenAddr, router)
@@ -72,7 +74,16 @@ func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
 	return fmt.Errorf("methods not allowed %s", r.Method)
 }
 
+// get /account
 func (s *APIServer) handleGETAccount(w http.ResponseWriter, r *http.Request) error {
+	accounts, err := s.store.GetAccounts()
+	if err != nil {
+		return err
+	}
+	return WriteJson(w, http.StatusOK, &accounts)
+}
+
+func (s *APIServer) handleGETAccountByID(w http.ResponseWriter, r *http.Request) error {
 
 	id := mux.Vars(r)["id"]
 
@@ -82,7 +93,30 @@ func (s *APIServer) handleGETAccount(w http.ResponseWriter, r *http.Request) err
 }
 
 func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
-	return nil
+	createAccountReq := new(CreateAccountRequest)
+	// createAccountReq := &CreateAccountRequest{
+
+	// }
+	/*
+		p := new(chan int)   // p has type: *chan int
+		c := make(chan int)  // c has type: chan int
+
+
+		or you can also use
+
+		createAccountReq := &CreateAccountRequest{}
+	*/
+
+	if err := json.NewDecoder(r.Body).Decode(createAccountReq); err != nil {
+		return err
+	}
+
+	account := NewAccount(createAccountReq.FirstName, createAccountReq.LastName)
+
+	if err := s.store.CreateAccount(account); err != nil {
+		return err
+	}
+	return WriteJson(w, http.StatusCreated, account)
 }
 
 func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error {
