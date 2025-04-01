@@ -20,6 +20,11 @@ type CreateAccountRequest struct {
 	LastName  string `json:"lastName"`
 }
 
+type TransferRequest struct {
+	ToAccount int `json:"toAccount"`
+	Amount    int `json:"amount"`
+}
+
 func NewAccount(firstName, lastName string) *Account {
 	return &Account{
 		// ID:        rand.Intn(10000), we will not use this random id, because in postgresql we are using serial type which increments on each creation. These random and serial might get conflict or give unorders id
